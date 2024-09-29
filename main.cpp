@@ -366,7 +366,7 @@ VOID UpdateGPUTemp()
     NvAPI_Status Status;
     NV_GPU_THERMAL_SETTINGS thermalSettings = { NV_GPU_THERMAL_SETTINGS_VER };
     DWORD n2;
-     NV_API_TEMP_INDEX TempIndex;
+    NV_API_TEMP_INDEX TempIndex;
     NV_API_ADV_TEMPERATURE AdvTemp;
 
 
@@ -393,7 +393,7 @@ VOID UpdateGPUTemp()
         //strcat_s(Msg, GPUNames[n]);
         //strcat_s(Msg, " ");
         strcpy_s(GPUName, 100, GPUNames[n]);
-  
+
         for (n2 = 0; n2 < thermalSettings.count; n2++)
         {
             NV_THERMAL_TARGET target = thermalSettings.sensor[n2].target;
@@ -532,8 +532,8 @@ void UpdateTemperature()
         // 绘制纵轴和刻度值
         const int axisX = 0;  // 纵轴距离窗口左边 10 像素
         const int numTicks = 4;  // 刻度数量 (25, 50, 75, 100)
-        float tickStep = (float)windowHeight / (numTicks );  // 每个刻度的间隔
-        float tempStep = tempRange / (numTicks );  // 每个刻度对应的温度值
+        float tickStep = (float)windowHeight / (numTicks);  // 每个刻度的间隔
+        float tempStep = tempRange / (numTicks);  // 每个刻度对应的温度值
 
         g_pBrush->SetColor(D2D1::ColorF(D2D1::ColorF::White));  // 纵轴颜色为白色
 
@@ -552,7 +552,7 @@ void UpdateTemperature()
 
             // 绘制刻度线
             g_pD2DRenderTarget->DrawLine(
-                D2D1::Point2F(axisX , yPos),
+                D2D1::Point2F(axisX, yPos),
                 D2D1::Point2F(axisX + 8.0f, yPos),
                 g_pBrush,
                 1.0f
@@ -640,7 +640,7 @@ void UpdateTemperature()
         g_pBrush                 // 文本颜色刷
     );
     delete[] text;
-    
+
     g_pD2DRenderTarget->EndDraw();
 }
 
@@ -679,12 +679,12 @@ HRESULT InitD3D(HWND hWnd)
     ID3D11Texture2D* pBackBuffer = nullptr;
 
     g_pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&pBackBuffer);
-    
+
     if (pBackBuffer == nullptr)
     {
         return S_FALSE;
     }
-    
+
     g_pd3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &g_pRenderTargetView);
     pBackBuffer->Release();
 
@@ -756,6 +756,11 @@ void Render()
         // 记录这次的更新时间
         g_lastUpdateTime = currentTime;
     }
+    else
+    {
+        return; 
+    }
+
 
     // 清除背景色
     float ClearColor[4] = { 0.0f, 0.2f, 0.4f, 1.0f };
@@ -804,41 +809,6 @@ void DiscardGraphicsResources()
     pRenderTarget = nullptr;
 }
 
-void OnPaint(HWND hWnd)
-{
-    PAINTSTRUCT ps;
-    BeginPaint(hWnd, &ps);
-
-    CreateGraphicsResources(hWnd);
-
-    pRenderTarget->BeginDraw();
-
-    pRenderTarget->Clear(D2D1::ColorF(0, 0, 0, 0));  // 完全透明的背景
-
-    // 绘制半透明的矩形
-    D2D1_RECT_F rectangle = D2D1::RectF(100.f, 100.f, 300.f, 200.f);
-    pRenderTarget->FillRectangle(&rectangle, pBrush);
-
-    HRESULT hr = pRenderTarget->EndDraw();
-
-    if (hr == D2DERR_RECREATE_TARGET)
-    {
-        DiscardGraphicsResources();
-    }
-
-    EndPaint(hWnd, &ps);
-}
-
-void OnResize(UINT width, UINT height)
-{
-    if (pRenderTarget)
-    {
-        D2D1_SIZE_U size;
-        size.width = width;
-        size.height = height;
-        pRenderTarget->Resize(size);
-    }
-}
 
 #include <shellapi.h>  // For Shell_NotifyIcon
 
@@ -860,7 +830,7 @@ NOTIFYICONDATA nid;
 // 添加托盘图标
 void AddTrayIcon(HWND hWnd)
 {
-    memset(&nid, 0 , sizeof(NOTIFYICONDATA));
+    memset(&nid, 0, sizeof(NOTIFYICONDATA));
     nid.cbSize = sizeof(NOTIFYICONDATA);
     nid.hWnd = hWnd;
     nid.uID = 1;  // 图标 ID
@@ -918,13 +888,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
-    case WM_PAINT:
-        OnPaint(hWnd);
-        break;
 
-    case WM_SIZE:
-        OnResize(LOWORD(lParam), HIWORD(lParam));
-        break;
+    case WM_PAINT:
+        g_lastUpdateTime = GetTickCount64() - 1000;
+        return DefWindowProc(hWnd, message, wParam, lParam);
+
 
     case WM_DESTROY:
         DiscardGraphicsResources();
@@ -934,9 +902,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_HOTKEY:
         if (wParam == 1)  // 热键 ID 为 1
         {
+            g_lastUpdateTime = GetTickCount64() - 1000;
+
             // 如果按下 Ctrl + Shift + P，切换窗口的显示状态
             if (isVisible)
             {
+
                 ShowWindow(hWnd, SW_HIDE);  // 隐藏窗口
                 isVisible = false;
             }
@@ -1037,7 +1008,7 @@ int WINAPI wWinMain(
 
     // 设置窗口透明度
     SetLayeredWindowAttributes(hWnd, 0, 180, LWA_ALPHA);
-   SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW);
+    SetWindowLong(hWnd, GWL_EXSTYLE, GetWindowLong(hWnd, GWL_EXSTYLE) | WS_EX_TOOLWINDOW);
 
     // 初始化 Direct3D
     if (FAILED(InitD3D(hWnd)))
@@ -1045,15 +1016,15 @@ int WINAPI wWinMain(
         MessageBox(hWnd, L"failed d3d", L"", MB_OK);
 
         CleanupDevice();
-  
+
         return 0;
     }
     // 初始化 Direct3D
     if (FAILED(InitD2D(hWnd)))
     {
-     
+
         CleanupDevice();
-         return 0;
+        return 0;
     }
     InitTextFormat();
     // 初始化 Direct2D 工厂

@@ -896,7 +896,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     case WM_DESTROY:
         DiscardGraphicsResources();
-        PostQuitMessage(0);
+        PostQuitMessage(0); 
         break;
 
     case WM_HOTKEY:
@@ -1058,6 +1058,8 @@ int WINAPI wWinMain(
         {
             // ‰÷»æ
             Render();
+            Sleep(990);
+
         }
     }
 

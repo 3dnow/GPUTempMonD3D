@@ -964,6 +964,21 @@ void InitTextFormat()
         &g_pTextFormat
     );
 }
+HANDLE g_hMutex = NULL;
+
+bool IsAlreadyRunning()
+{
+    // 创建一个命名的互斥体
+    g_hMutex = CreateMutex(NULL, TRUE, L"Global\\GPUTempMonD3D"); // 确保名称唯一
+    if (g_hMutex == NULL || GetLastError() == ERROR_ALREADY_EXISTS)
+    {
+        // 如果互斥体已经存在，说明程序已经在运行
+        return true;
+    }
+    return false;
+}
+
+
 
 // WinMain 函数
 int WINAPI wWinMain(
@@ -973,7 +988,10 @@ int WINAPI wWinMain(
     _In_ int nCmdShow
 )
 {
-
+    if (IsAlreadyRunning())
+    {
+        return 0; 
+    }
     // 注册窗口类
     WNDCLASSEX wcex = {};
     wcex.cbSize = sizeof(WNDCLASSEX);

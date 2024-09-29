@@ -732,7 +732,6 @@ HRESULT InitD2D(HWND hWnd)
     hr = g_pD2DRenderTarget->CreateSolidColorBrush(D2D1::ColorF(D2D1::ColorF::Red), &g_pBrush);
     return hr;
 }
-ULONGLONG g_lastUpdateTime = 0;  // 记录上次更新时间的时间戳
 // 清理 Direct2D 资源
 void CleanupD2D()
 {
@@ -740,26 +739,10 @@ void CleanupD2D()
     if (g_pD2DRenderTarget) g_pD2DRenderTarget->Release();
     if (g_pD2DFactory) g_pD2DFactory->Release();
 }
-
-
 void Render()
 {
-    // 获取当前的时间戳（毫秒）
-    ULONGLONG currentTime = GetTickCount64();
+    UpdateTemperature();
 
-    // 检查是否已经过去了 1000 毫秒（1 秒）
-    if (currentTime - g_lastUpdateTime >= 1000)
-    {
-        // 更新温度数据
-        UpdateTemperature();
-
-        // 记录这次的更新时间
-        g_lastUpdateTime = currentTime;
-    }
-    else
-    {
-        return; 
-    }
 
 
     // 清除背景色
@@ -771,7 +754,21 @@ void Render()
 
     // 交换前后缓冲区
     g_pSwapChain->Present(0, 0);
-}ID2D1Factory* pFactory = nullptr;
+    return;
+}
+
+DWORD WINAPI RenderThread(LPVOID lpThreadParameter)
+{
+
+    while (TRUE)
+    {
+        Render();
+        Sleep(1000);
+    }
+    return 0; 
+}
+
+ID2D1Factory* pFactory = nullptr;
 ID2D1HwndRenderTarget* pRenderTarget = nullptr;
 ID2D1SolidColorBrush* pBrush = nullptr;
 
@@ -886,12 +883,14 @@ static bool isVisible = true;
 // 窗口过程
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    LRESULT hr;
     switch (message)
     {
 
     case WM_PAINT:
-        g_lastUpdateTime = GetTickCount64() - 1000;
-        return DefWindowProc(hWnd, message, wParam, lParam);
+       hr = DefWindowProc(hWnd, message, wParam, lParam);
+       Render();
+       return hr; 
 
 
     case WM_DESTROY:
@@ -902,7 +901,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_HOTKEY:
         if (wParam == 1)  // 热键 ID 为 1
         {
-            g_lastUpdateTime = GetTickCount64() - 1000;
+            
 
             // 如果按下 Ctrl + Shift + P，切换窗口的显示状态
             if (isVisible)
@@ -916,6 +915,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ShowWindow(hWnd, SW_SHOW);  // 显示窗口
                 isVisible = true;
             }
+
+            Render();
         }
         break;
     case WM_TRAYICON:
@@ -1044,23 +1045,19 @@ int WINAPI wWinMain(
     ReadyForGPU();
 
 
+    DWORD tid;
 
+    CreateThread(NULL, 0, RenderThread, 0, 0, &tid);
     // 主消息循环
     MSG msg = {};
     while (msg.message != WM_QUIT)
     {
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+        if (GetMessage(&msg, nullptr, 0, 0))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        else
-        {
-            // 渲染
-            Render();
-            Sleep(990);
 
-        }
     }
 
     // 移除托盘图标

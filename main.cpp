@@ -358,6 +358,9 @@ int coreTemp;
 int hotspotTemp;
 int memoryTemp;
 
+int CoreTempPeak = 0;
+int HotspotTempPeak = 0 ;
+int memoryTempPeak = 0; 
 
 CHAR GPUName[100];
 VOID UpdateGPUTemp()
@@ -497,6 +500,21 @@ void UpdateTemperature()
     //float currentGpuMemoryTemp = 40.0f + (rand() % 1000) / 100.0f;  // 40°C - 50°C
 
     UpdateGPUTemp();
+
+    if (coreTemp > CoreTempPeak)
+    {
+        CoreTempPeak = coreTemp; 
+    }
+
+    if (hotspotTemp > HotspotTempPeak)
+    {
+        HotspotTempPeak = hotspotTemp; 
+    }
+
+    if (memoryTemp > memoryTempPeak)
+    {
+        memoryTempPeak = memoryTemp;
+    }
 
     // 保存温度数据
     gpuTemps[tempIndex] = (float)coreTemp;
@@ -812,6 +830,7 @@ void DiscardGraphicsResources()
 #define WM_TRAYICON (WM_USER + 1)  // 自定义消息，用于托盘图标事件
 #define ID_TRAY_EXIT 1001          // 菜单选项：退出
 #define ID_TRAY_ABOUT 1002         // 菜单选项：关于
+#define ID_TRAY_STAT 1003 
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 void AddTrayIcon(HWND hWnd);
@@ -854,8 +873,12 @@ void ShowTrayMenu(HWND hWnd)
     // 创建菜单
     HMENU hMenu = CreatePopupMenu();
     AppendMenu(hMenu, MF_STRING, ID_TRAY_ABOUT, L"About");
+ 
+    AppendMenu(hMenu, MF_STRING, ID_TRAY_STAT, L"Statistics");
+    AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
+    
     AppendMenu(hMenu, MF_STRING, ID_TRAY_EXIT, L"Exit");
-
+ 
     // 设置菜单为前台窗口
     SetForegroundWindow(hWnd);
 
@@ -877,6 +900,15 @@ void OnExit()
     PostQuitMessage(0);
 }
 
+void OnStatistics(HWND hWnd)
+{
+    WCHAR Msg[200];
+
+    swprintf_s(Msg, 200, L"Core Peak: %u°C \nHotspot Peak: %u°C \nMemory Peak:%u°C ", CoreTempPeak, HotspotTempPeak, memoryTempPeak);
+
+    MessageBox(hWnd, Msg, L"Temperature Statistics", MB_OK | MB_ICONINFORMATION);
+
+}
 
 
 static bool isVisible = true;
@@ -938,6 +970,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case ID_TRAY_EXIT:
             OnExit();  // 退出程序
             break;
+        case ID_TRAY_STAT:
+            OnStatistics(hWnd);
         }
         break;
 
